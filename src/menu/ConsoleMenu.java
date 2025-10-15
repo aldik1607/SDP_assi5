@@ -2,18 +2,21 @@ package menu;
 
 import account.Account;
 import account.InvestmentAccount;
-import account.SavingsAccount;
 import decorator.InsuranceDecorator;
-import decorator.RewardPointsDecorator;
 import decorator.TaxOptimizerDecorator;
+import decorator.RewardPointsDecorator;
 import facade.BankingFacade;
+import factory.AccountFactory;
+import builder.AccountBuilder;
+import builder.AccountBuilder.AccountType;
 
 import java.util.*;
+
 
 public class ConsoleMenu {
 
     private final Scanner scanner = new Scanner(System.in);
-    private final Map<String, Account> accounts = new LinkedHashMap<>(); // id -> account (в порядке добавления)
+    private final Map<String, Account> accounts = new LinkedHashMap<>();
     private final BankingFacade facade = new BankingFacade();
 
     public static void main(String[] args) {
@@ -37,6 +40,8 @@ public class ConsoleMenu {
                 case "8": applyDecoratorMenu(); break;
                 case "9": investOnAccount(); break;
                 case "10": closeAccount(); break;
+                case "11": createWithBuilder(); break;
+                case "12": createWithFactoryCustom(); break;
                 case "0": running = false; break;
                 default:
                     System.out.println("Неверный выбор. Попробуй снова.");
@@ -46,24 +51,26 @@ public class ConsoleMenu {
     }
 
     private void printHeader() {
-        System.out.println("=== Banking & Investment Demo — Console Menu ===");
-        System.out.println("Цель: демонстрация паттернов Decorator и Facade");
+        System.out.println("=== Banking & Investment Demo — Console Menu (Factory + Builder) ===");
+        System.out.println("Цель: демонстрация паттернов Decorator, Facade, Builder и Factory");
         System.out.println();
     }
 
     private void printMenu() {
         System.out.println();
         System.out.println("Меню:");
-        System.out.println("1) Создать SavingsAccount (ручной)");
-        System.out.println("2) Создать InvestmentAccount (ручной)");
-        System.out.println("3) Открыть Savings с преимуществами (фасад: Reward + Insurance)");
-        System.out.println("4) Открыть Investment в \"safety mode\" (фасад: TaxOptimizer + Insurance)");
+        System.out.println("1) Создать SavingsAccount (через Factory)");
+        System.out.println("2) Создать InvestmentAccount (через Factory)");
+        System.out.println("3) Открыть Savings с преимуществами (через Facade)");
+        System.out.println("4) Открыть Investment в \"safety mode\" (через Facade)");
         System.out.println("5) Показать все аккаунты");
         System.out.println("6) Внести средства на счёт");
         System.out.println("7) Снять средства со счёта");
         System.out.println("8) Добавить декоратор (Insurance / TaxOptimizer / RewardPoints) к существующему счёту");
         System.out.println("9) Инвестировать (для InvestmentAccount или TaxOptimizerDecorator)");
         System.out.println("10) Закрыть счёт");
+        System.out.println("11) Создать аккаунт через Builder (диалог)");
+        System.out.println("12) Создать кастомный аккаунт через Factory.createCustom (флаги)");
         System.out.println("0) Выход");
         System.out.print("Выбери пункт: ");
     }
@@ -72,18 +79,18 @@ public class ConsoleMenu {
         System.out.print("Владелец: ");
         String owner = scanner.nextLine().trim();
         double init = askForDouble("Начальный депозит: ");
-        Account acc = new SavingsAccount(owner, init);
+        Account acc = AccountFactory.createSavings(owner, init);
         accounts.put(acc.getAccountId(), acc);
-        System.out.println("Создан: " + acc.getDescription());
+        System.out.println("Создан (Factory): " + acc.getDescription());
     }
 
     private void createInvestment() {
         System.out.print("Владелец: ");
         String owner = scanner.nextLine().trim();
         double init = askForDouble("Начальный депозит: ");
-        Account acc = new InvestmentAccount(owner, init);
+        Account acc = AccountFactory.createInvestment(owner, init);
         accounts.put(acc.getAccountId(), acc);
-        System.out.println("Создан: " + acc.getDescription());
+        System.out.println("Создан (Factory): " + acc.getDescription());
     }
 
     private void createSavingsWithBenefits() {
@@ -91,7 +98,6 @@ public class ConsoleMenu {
         String owner = scanner.nextLine().trim();
         double init = askForDouble("Начальный депозит: ");
         Account acc = facade.openAccountWithBenefits(owner, "savings", init);
-        // добавим также в локальный реестр меню, чтобы можно было дальше управлять
         accounts.put(acc.getAccountId(), acc);
         System.out.println("Создан через фасад: " + acc.getDescription());
     }
@@ -164,7 +170,6 @@ public class ConsoleMenu {
                 System.out.println("Неверный выбор.");
                 return;
         }
-        // replace mapping with wrapped object under same id (decorator preserves getAccountId)
         accounts.put(wrapped.getAccountId(), wrapped);
         System.out.println("Новый статус: " + wrapped.getDescription());
     }
@@ -173,41 +178,79 @@ public class ConsoleMenu {
         Account a = chooseAccount();
         if (a == null) return;
         double percent = askForDouble("Процент возврата (например, 5 для 5%): ");
-        // Если это TaxOptimizerDecorator -> используем оптимизированный путь
         if (a instanceof TaxOptimizerDecorator) {
             ((TaxOptimizerDecorator) a).optimizedInvest(percent);
         } else if (a instanceof InvestmentAccount) {
             ((InvestmentAccount) a).invest(percent);
         } else {
-            // возможно это декоратор над InvestmentAccount; пробуем привести через reflection-safe check:
-            if (a instanceof decorator.AccountDecorator) {
-                // попытка вызвать optimizedInvest если внутри TaxOptimizerDecorator:
-                // но проще — напомним пользователю, что инвестировать можно только на инвестиционных аккаунтах
-                System.out.println("Этот аккаунт — не инвестиционный. Чтобы инвестировать, сначала преобразуйте/создайте InvestmentAccount.");
-            } else {
-                System.out.println("Инвестирование доступно только для InvestmentAccount или TaxOptimizerDecorator.");
-            }
+            System.out.println("Инвестирование доступно только для InvestmentAccount или TaxOptimizerDecorator.");
         }
     }
 
     private void closeAccount() {
         Account a = chooseAccount();
         if (a == null) return;
-        // если аккаунт был создан через фасад — фасад умеет закрывать и удалять из своего реестра,
-        // но наш локальный реестр всё равно нужно почистить.
-        facade.closeAccount(a); // фасад корректно обработает, если он знает об аккаунте; иначе просто вызовет close
+        facade.closeAccount(a);
         accounts.remove(a.getAccountId());
-        System.out.println("Счёт закрыт и удалён из локального списка.");
+        System.out.println("Счёт закрыт и удалён из локальном списке.");
     }
 
-    // Вспомогательные методы
+
+    private void createWithBuilder() {
+        System.out.print("Владелец: ");
+        String owner = scanner.nextLine().trim();
+        double init = askForDouble("Начальный депозит: ");
+        System.out.print("Тип (1 - SAVINGS, 2 - INVESTMENT): ");
+        String t = scanner.nextLine().trim();
+        AccountType type = "2".equals(t) ? AccountType.INVESTMENT : AccountType.SAVINGS;
+
+        System.out.print("Добавить RewardPoints? (y/n): ");
+        boolean reward = scanner.nextLine().trim().equalsIgnoreCase("y");
+        System.out.print("Добавить TaxOptimizer? (y/n): ");
+        boolean tax = scanner.nextLine().trim().equalsIgnoreCase("y");
+        System.out.print("Добавить Insurance? (y/n): ");
+        boolean ins = scanner.nextLine().trim().equalsIgnoreCase("y");
+
+        AccountBuilder builder = new AccountBuilder()
+                .type(type)
+                .owner(owner)
+                .initialDeposit(init);
+        if (reward) builder.withRewardPoints();
+        if (tax) builder.withTaxOptimizer();
+        if (ins) builder.withInsurance();
+
+        Account acc = builder.build();
+        accounts.put(acc.getAccountId(), acc);
+        System.out.println("Создан через Builder: " + acc.getDescription());
+    }
+
+
+    private void createWithFactoryCustom() {
+        System.out.print("Владелец: ");
+        String owner = scanner.nextLine().trim();
+        double init = askForDouble("Начальный депозит: ");
+        System.out.print("Тип (1 - SAVINGS, 2 - INVESTMENT): ");
+        String t = scanner.nextLine().trim();
+        AccountType type = "2".equals(t) ? AccountType.INVESTMENT : AccountType.SAVINGS;
+
+        System.out.print("Добавить RewardPoints? (y/n): ");
+        boolean reward = scanner.nextLine().trim().equalsIgnoreCase("y");
+        System.out.print("Добавить TaxOptimizer? (y/n): ");
+        boolean tax = scanner.nextLine().trim().equalsIgnoreCase("y");
+        System.out.print("Добавить Insurance? (y/n): ");
+        boolean ins = scanner.nextLine().trim().equalsIgnoreCase("y");
+
+        Account acc = AccountFactory.createWithBuilder(type, owner, init, reward, tax, ins);
+        accounts.put(acc.getAccountId(), acc);
+        System.out.println("Создан через Factory+Builder: " + acc.getDescription());
+    }
+
 
     private Account chooseAccount() {
         if (accounts.isEmpty()) {
             System.out.println("Сначала создайте аккаунт.");
             return null;
         }
-        System.out.println("Выбери аккаунт по ID (или введите 'list' для показа):");
         listAccounts();
         System.out.print("ID: ");
         String id = scanner.nextLine().trim();
