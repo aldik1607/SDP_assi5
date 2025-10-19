@@ -1,9 +1,12 @@
 package account;
 
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public abstract class BaseAccount implements Account {
+    protected static final AtomicInteger SAVINGS_COUNTER = new AtomicInteger(1);
+    protected static final AtomicInteger INVESTMENT_COUNTER = new AtomicInteger(1);
+
     protected final String accountId;
     protected final String owner;
     protected double balance;
@@ -11,7 +14,17 @@ public abstract class BaseAccount implements Account {
 
 
     public BaseAccount(String owner, double initialDeposit) {
-        this.accountId = UUID.randomUUID().toString();
+        this.accountId = generateId();
+        this.owner = owner;
+        this.balance = initialDeposit;
+    }
+
+    public BaseAccount(String owner, double initialDeposit, String explicitId) {
+        if (explicitId == null || explicitId.isEmpty()) {
+            this.accountId = generateId();
+        } else {
+            this.accountId = explicitId;
+        }
         this.owner = owner;
         this.balance = initialDeposit;
     }
@@ -59,4 +72,7 @@ public abstract class BaseAccount implements Account {
         closed = true;
         System.out.printf("%s: Account closed. Final balance: %.2f\n", accountId, balance);
     }
+
+    protected abstract String generateId();
+
 }

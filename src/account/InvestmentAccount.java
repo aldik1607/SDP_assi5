@@ -1,8 +1,18 @@
 package account;
 
+
 public class InvestmentAccount extends BaseAccount {
     public InvestmentAccount(String owner, double initialDeposit) {
         super(owner, initialDeposit);
+    }
+
+    public InvestmentAccount(String owner, double initialDeposit, String explicitId) {
+        super(owner, initialDeposit, explicitId);
+    }
+
+    @Override
+    protected String generateId() {
+        return String.format("INV-%03d", INVESTMENT_COUNTER.getAndIncrement());
     }
 
 

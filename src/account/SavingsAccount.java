@@ -5,6 +5,14 @@ public class SavingsAccount extends BaseAccount {
         super(owner, initialDeposit);
     }
 
+    public SavingsAccount(String owner, double initialDeposit, String explicitId) {
+        super(owner, initialDeposit, explicitId);
+    }
+
+    @Override
+    protected String generateId() {
+        return String.format("SAV-%03d", SAVINGS_COUNTER.getAndIncrement());
+    }
 
     @Override
     public String getDescription() {

@@ -100,8 +100,12 @@ public class PersistenceManagerTxt {
 
                 AccountType type = "INVESTMENT".equals(baseType) ? AccountType.INVESTMENT : AccountType.SAVINGS;
 
-                Account acc = AccountFactory.createCustom(owner, type, 0.0, false, false, false);
-
+                Account acc;
+                if (type == AccountType.INVESTMENT) {
+                    acc = new account.InvestmentAccount(owner, 0.0, id); // use constructor with explicit id
+                } else {
+                    acc = new account.SavingsAccount(owner, 0.0, id);
+                }
                 if (balance > 0) {
                     acc.deposit(balance);
                 }
