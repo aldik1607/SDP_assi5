@@ -29,4 +29,6 @@ public class RewardPointsDecorator extends AccountDecorator {
 
 
     public int getPoints() { return points; }
+
+    public void setPoints(int points) { this.points = points; }
 }

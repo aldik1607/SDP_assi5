@@ -7,9 +7,13 @@ public abstract class AccountDecorator implements Account {
 
 
     public AccountDecorator(Account wrapped) {
+        if (wrapped == null) throw new IllegalArgumentException("wrapped account is null");
         this.wrapped = wrapped;
     }
 
+    public Account getWrapped() {
+        return wrapped;
+    }
 
     @Override
     public String getAccountId() { return wrapped.getAccountId(); }
@@ -37,4 +41,6 @@ public abstract class AccountDecorator implements Account {
 
     @Override
     public String getDescription() { return wrapped.getDescription(); }
+
+
 }

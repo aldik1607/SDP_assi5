@@ -3,15 +3,20 @@ package facade;
 import account.Account;
 import factory.AccountFactory;
 import builder.AccountBuilder.AccountType;
+import adapter.CurrencyConverter;
+import java.math.BigDecimal;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import java.util.*;
+
 
 public class BankingFacade {
 
     private final Map<String, Account> accounts = new HashMap<>();
+    private CurrencyConverter currencyConverter;
 
 
     public Account openAccountWithBenefits(String owner, String type, double initialDeposit) {
@@ -70,4 +75,27 @@ public class BankingFacade {
         if (acc == null) return;
         acc.withdraw(amount);
     }
+
+    public void setCurrencyConverter(CurrencyConverter converter) {
+        this.currencyConverter = converter;
+    }
+
+    public BigDecimal convertAccountBalance(Account acc, String toCurrency) {
+        if (currencyConverter == null) {
+            throw new IllegalStateException("CurrencyConverter not configured.");
+        }
+
+        BigDecimal amount = BigDecimal.valueOf(acc.getBalance());
+        return currencyConverter.convert(amount, "USD", toCurrency);
+    }
+
+    public Collection<Account> getAllAccounts() {
+        return Collections.unmodifiableCollection(accounts.values());
+    }
+
+    public void addAccount(Account acc) {
+        if (acc == null) return;
+        accounts.put(acc.getAccountId(), acc);
+    }
+
 }

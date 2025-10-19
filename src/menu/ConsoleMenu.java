@@ -9,6 +9,11 @@ import facade.BankingFacade;
 import factory.AccountFactory;
 import builder.AccountBuilder;
 import builder.AccountBuilder.AccountType;
+import adapter.SimpleRatesProvider;
+import adapter.ExchangeAdapter;
+
+import java.io.IOException;
+import java.math.BigDecimal;
 
 import java.util.*;
 
@@ -24,6 +29,22 @@ public class ConsoleMenu {
     }
 
     private void run() {
+        try {
+            persistence.PersistenceManagerTxt.loadAll(facade, "accounts.txt");
+            for (Account a : facade.getAllAccounts()) {
+                accounts.put(a.getAccountId(), a);
+            }
+            System.out.println("Accounts loaded from accounts.txt");
+        } catch (IOException e) {
+            System.out.println("Load failed: " + e.getMessage());
+        }
+
+        SimpleRatesProvider ratesProvider = new SimpleRatesProvider();
+        ExchangeAdapter exchangeAdapter = new ExchangeAdapter(ratesProvider);
+        facade.setCurrencyConverter(exchangeAdapter);
+
+
+
         printHeader();
         boolean running = true;
         while (running) {
@@ -42,11 +63,19 @@ public class ConsoleMenu {
                 case "10": closeAccount(); break;
                 case "11": createWithBuilder(); break;
                 case "12": createWithFactoryCustom(); break;
+                case "13": convertBalanceMenu(); break;
                 case "0": running = false; break;
                 default:
                     System.out.println("Неверный выбор. Попробуй снова.");
             }
         }
+        try {
+            persistence.PersistenceManagerTxt.saveAll(facade, "accounts.txt");
+            System.out.println("Accounts saved to accounts.txt");
+        } catch (IOException e) {
+            System.out.println("Save failed: " + e.getMessage());
+        }
+
         System.out.println("Выход. Пока!");
     }
 
@@ -71,6 +100,7 @@ public class ConsoleMenu {
         System.out.println("10) Закрыть счёт");
         System.out.println("11) Создать аккаунт через Builder (диалог)");
         System.out.println("12) Создать кастомный аккаунт через Factory.createCustom (флаги)");
+        System.out.println("13) Конвертировать баланс аккаунта (Adapter)");
         System.out.println("0) Выход");
         System.out.print("Выбери пункт: ");
     }
@@ -81,6 +111,7 @@ public class ConsoleMenu {
         double init = askForDouble("Начальный депозит: ");
         Account acc = AccountFactory.createSavings(owner, init);
         accounts.put(acc.getAccountId(), acc);
+        facade.addAccount(acc);
         System.out.println("Создан (Factory): " + acc.getDescription());
     }
 
@@ -90,6 +121,7 @@ public class ConsoleMenu {
         double init = askForDouble("Начальный депозит: ");
         Account acc = AccountFactory.createInvestment(owner, init);
         accounts.put(acc.getAccountId(), acc);
+        facade.addAccount(acc);
         System.out.println("Создан (Factory): " + acc.getDescription());
     }
 
@@ -171,6 +203,7 @@ public class ConsoleMenu {
                 return;
         }
         accounts.put(wrapped.getAccountId(), wrapped);
+        facade.addAccount(wrapped);
         System.out.println("Новый статус: " + wrapped.getDescription());
     }
 
@@ -221,6 +254,7 @@ public class ConsoleMenu {
 
         Account acc = builder.build();
         accounts.put(acc.getAccountId(), acc);
+        facade.addAccount(acc);
         System.out.println("Создан через Builder: " + acc.getDescription());
     }
 
@@ -242,6 +276,7 @@ public class ConsoleMenu {
 
         Account acc = AccountFactory.createWithBuilder(type, owner, init, reward, tax, ins);
         accounts.put(acc.getAccountId(), acc);
+        facade.addAccount(acc);
         System.out.println("Создан через Factory+Builder: " + acc.getDescription());
     }
 
@@ -270,6 +305,20 @@ public class ConsoleMenu {
             } catch (NumberFormatException ex) {
                 System.out.println("Некорректное число. Попробуй ещё.");
             }
+        }
+    }
+
+    private void convertBalanceMenu() {
+        Account a = chooseAccount();
+        if (a == null) return;
+        System.out.print("Целевая валюта (например, EUR, KZT): ");
+        String to = scanner.nextLine().trim().toUpperCase();
+        try {
+            BigDecimal converted = facade.convertAccountBalance(a, to); // ADDED: uses facade's method
+            System.out.printf("Баланс: %.2f USD -> %s %s%n",
+                    a.getBalance(), converted.toPlainString(), to);
+        } catch (Exception ex) {
+            System.out.println("Ошибка при конвертации: " + ex.getMessage());
         }
     }
 }
